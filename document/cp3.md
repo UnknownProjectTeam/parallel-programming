@@ -2,7 +2,7 @@
 
 여러개의 Thread 구동 시 특정 객체를 동시에 사용하려고 할 때 어떻게 해야 안전하게 동작하게 할 것인가
 
-간단하게 Syncronized 키워드를 사용해서 동기화를 하면 되긴한데 굳이 써야되? 라는 마인드로 소스 짰다간 **memory Visibility** ( 메모리 가시성 )이라는 문제가 발생할 수 있다. 머 항상 예기 하는거지만 Thread 구동시 변수의 동시 접근 간 데이터의 무결성을 예기하는거 같다. 
+간단하게 Syncronized 키워드를 사용해서 동기화를 하면 되긴한데 굳이 써야되? 라는 마인드로 소스 짰다간 **memory Visibility** ( 메모리 가시성 )이라는 문제가 발생할 수 있다. 머 항상 예기 하는거지만 Thread 구동시 변수의 동시 접근 간 데이터의 무결성을 말 (~~horse~~)하는거 같다. 
 
 ----
 
@@ -99,9 +99,8 @@
 ## 자원의 접근 및 생성 메소드의 안정성
 
 - Thread 가 수행되고 있는 변수 에 public으로 접근하거나, private - get/set 으로 강제적으로 접근 할 경우 문제가 발생 할 수 있다 - Escaped ( 유출 ) 상태 , ~~당연히 문제가 생기지...~~
-- 해결방안은 .... 이야기좀 해봅시다.. 이해가 안가네.. -_-)..
 
-----
+---
 
 ## Thread Confinement( 스레드 한정 )
 
@@ -137,31 +136,31 @@
                        }
                    }
                    private void displayValues(String str) {
-                       System.out.println(str + "\t"
-       + Thread.currentThread().getName() + "\t(counter:"
+                       System.out.println(str + "\t" + Thread.currentThread().getName() + "\t(counter:"
        + counter + ")");
-       ```
+
                 }
             };
-      
+           
             for (int i = 0; i < 5; i++) {
                 Thread t = new Thread(runner);
                 t.start();
             }
         }
-    }
-    // 출처 : http://haneulnoon.tistory.com/28
-    ```
+       }
+       // 출처 : http://haneulnoon.tistory.com/28
+       ```
 
-  - 활용 ( 주로 Application Framework )
+
+- 활용 ( 주로 Application Framework )
 
     - Spring Security에서 사용자 인증에 대한 정보를 계속 물고 있어야 될 경우
     - JDBC Tranjection 에 대한 정보를 물고 있어야 될 경우
 
-  - 주의사항
+- 주의사항
 
     - 전역변수가 아닌데 전역변수 인것 처럼 동작하기 때문에 초기화를 확실하게 해줘야 된다. 그렇지 않으면 재사용되는 Thread ( Thread Pool )일 경우 올바르지 않은 데이터가 나올 수 있다 
-    ```
+
 
 ----
 
@@ -219,7 +218,7 @@
 
 ---
 
-## 변수의 안전한 접근법
+## Thread 변수의 안전한 접근법
 
 - public 을 통한 방법은 전혀 안전하지 않음
 
