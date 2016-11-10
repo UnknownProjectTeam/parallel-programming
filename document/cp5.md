@@ -61,17 +61,100 @@
 
 ### 5.1.2 Iterator와 ConcurrentModificationException
 
-* Collection클래스를 반복문(Iterator,for..)을 통해 차례대로 읽어다 사용 하는 중 내부 값 추가 및 제거 작업 시도 시 ConccurentModificationException 발생함.
+####	1) ConcurrentModificationException 이란?
+
+* 동기화 된 클래스를 사용하더라도 다중 Thread를 이용해 Iterator(for,while)를 사용하여 컬렉션 내부 클래스 값을 차례로 읽어나가면서 변경 및 추가 작업을 시도 하면 문제가 발생함.
+* 그래서 즉시 멈춤(fail-fast)형태로 구현이 되어있다.
+  [즉시 멈춤 방법이란 반복문 실행하는 도중 컬렉션 클래스의 내부 값이 변경되는 상황을 포착하면 ConcurrentModificationException 예외를 발생시키고 멈추는 처리방법]
+* 즉시멈춤 방법은 새로운 병렬 프로그램 한다면 사용자가 직접 구현을 해야 한다.(Vector등 기구현)
+  1. 컬렉션 내부에 값 변경 횟수 저장 변수 마련
+  2. 반복문이 실행 변경되는 동안 변경 횟수 값이 바뀌면 hasNext Method 나 next method 에서 ConcurrentModificationException을 발생 시킴.
+  3. 그러나 변경 횟수를 확인 하는 부분이 적절하게 동기화 되어 있지 않기 때문에 세는 과정에서  Stale 값을 사용하게 될 가능성이 있으나(변경이 되었다는 사실을 모를 수 있음) 동기화 기법을 사용하여 구현한다면 전체적인 성능 하락이 있으므로 동기화 기법을 적용하지 않음.
+
+#### 2) Iterator사용 시 ConcurrentModificationException을 발생시키지 않을려면..
+
+* 코드 전체를 동기화 시키는 방법 (성능이 좋지 않음)
+* clone method로 객체 복사하여 복사본을 대상으로 반복문 사용(clone 메소드 실행 하는 동안 lock 발생)
+
+```java
+List<Widget> widgetList = Collections.synchronizedList (new ArrayList<Widget>());
+// ConcurrentException이 발생하는 예제
+for (Widget w: widgetList)
+	doSomething(w);
+
+// 코드 전체를 동기화 시키는 방법 (시간이 많이 걸리는 작업일 경우 성능이 매우 좋지 않다.)
+synchronized(widgetList){
+	for (Widget w: widgetList)
+		doSomething(w);
+}
+```
 
 ### 5.1.3 숨겨진 Iterator
 
+> 메소드 내부적으로 보이진 않지만 Iterator가 숨겨진 연산들이 존재하므로 주의 해서 사용해야한다.
+> ex) toString(), equals(), hashCode() 메소드들이 내부적으로 iterator를 사용한다.
+
+```java
+public class HiddenIterator {
+  @GuardedBy("this")
+  private final Set<Integer> set = new HashSet<Integer();
+  
+  public synchronized void add(Integer i) {
+    set.add(i);
+  }
+  public synchronized void remove(Integer i){
+  	set.remove(i);
+  }
+  
+  public void addTenThings(){
+    Random r = new Random();
+    for (int i=0; i<10; i++)
+    	add(r.nextInt());
+    /**
+     * 아래 구문은 set변수를 출력하려고 하고 있다. 
+     * set.toString() method를 호출 하는데 toString() 내부는 set객체를 iterator하여 StringBuilder.add()를 통하여 String을 합친다. 
+     * 그러므로 ConcurrentModificationException 발생할 수 있다.
+    **/
+    System.out.println("DEBUG: added ten elements to " + set);
+  }
+}
+```
+
 ## 5.2 병렬 컬렉션
+
+> 자바 5.0은 여러가지 병렬 컬렉션을 제공한다.
+> 동기화 된 컬렉션은 컬렉션의 내부 변수에 접근하는 통로를 일련화해서 스레드 안정성을 확보함.
+> ConcurrentHashMap,CopyOnWriteArrayList,BlockingQueue,ConcurrentLinkedQueue,PriorityQueue등 이 존재한다.
 
 ### 5.1.2 ConcurrentHashMap
 
+> HashMap과 같이 Hash 기반으로 하는 Map 객체.
+> 내부적으로 이전에 사용하던 것과 다른 동기화 기법을 채택하여 병렬성과 확장성 상승
+
+#### 장점
+
+* 락 스트라이핑(11.4.3 절 참조)이라 부르는 세밀한 동기화 방법 사용하여 공유하는 상태에 대해 잘 대응가능함.
+* 값을 읽어가는 연산의 경우 많은 수의 Thread라도 동시 처리 가능
+* 읽기 연산과 쓰기 연산을 동시에 처리 가능(Iterator가 ConcurrentModificationException을 발생시키지 않음)
+* 쓰기 연산은 제한된 개수만큼 동시 처리 가능
+* 여러 스레드가 동시에  동작하는 환경에서 높은 성능을 볼수 있고 단일 스레드 환경에서도 성능상 단점이 없음
+
+#### 단점
+
+* size 메소드 및 isEmpty 메소드의 의미가 약해졌다.(메소드가 리턴하는 시점에 이미 실제 객체의 수가 바뀌었을 수 있기 때문에 But 그다지 문제 되는 부분이 잘 없음)
+
+* 맵을 독점적으로 사용할 수 있도록 막아버리는 기능(Lock)
+
+  ​
+
 ### 5.2.2 Map 기반의 또 다른 단일 연산
 
+> ConcurrentHashMap의 경우 독점적으로 사용할 수 있는 락이 없기 때문에 새로운 연산을 추가하는 경우에는 ConcurrentMap을 사용해 보는 편이 낫다.
+
 ### 5.2.3 CopyOnWriteArrayList
+
+> CopyOnWriteArrayList 동기화된 List클래스(SynchronizedList)보다 병렬성을 높이고자 만들어졌다.
+> '변경할 때 마다 복사' 하여 불변 객체를 외부에 공개하여 스레드의 안정성 확보한다.
 
 ## 5.3 블로킹 큐와 프로듀서 -컨슈머 패턴
 
