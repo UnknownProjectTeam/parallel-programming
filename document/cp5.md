@@ -216,11 +216,36 @@ public class HiddenIterator {
 * 블로킹 메소드
 
   > 스레드가 블록되면 동작이 뭠춰진 다음 블록된 상태 가운데 하나를 갖게 된다. 블로킹 연산은 단순히 실행 시간이 오래 걸리는 일반 연산과는 달리 멈춘상태에서 특정한 신호를 받아야 계속해서 실행할 수 있는 연산을 말한다.
+  >
+  > 특정 메소드가 interruptedException을 발생시킬 수 있다는 것은 해당 메소드가 블로킹 메소드라는 의미이고 만약 메소드에 인터럽트가 걸리면 해당 ㅁ메소드는 대기중인상태에서 풀려나고자 노력한다.
 
 * 인터럽트
 
   > 스레드가 서로 협력해서 실행하기 위한 방법.
   > ex) 스레드 A가 스레드 B에 인터럽트를 건다 -> 스레드 A가 스레드 B에게 실행을 멈추라고 요청을 하는 것.
+
+* InterrutpedException이 발생할 때 그에 대처할 수 있는 방법을 마련 해둬야 한다.
+
+  * InterruptedException을 전달
+    받아낸 InterruptedException을 그대로 호출한 메소드에 넘겨버리는 방법.
+
+  * 인터럽트를 무시하고 복구
+    특정 상황에서는 InterruptedException을 throw 할 수 없을 수도 있는데, 예를 들어 Runnable 인터페이스를 구현한 경우가 해당된다. 이런 경우에는 InterruptedException을 catch 한 다음, 현재 스레드의 interrupt 메소드를 호출해 인터럽트 상태를 설정해 상위 호출 메소드가 인터럽트 상황이 발생했음을 알 수 있도록 해야한다.
+
+    ```java
+    public class TaskRunnable implements Runnable {
+      BlockingQueue<Task> queue;
+      ...
+      public void run() {
+        try {
+          processTask(queue.take());
+        }catch (InterruptedException e){
+          //인터럽트가 발생한 사실을 저장한다.
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+    ```
 
 ## 5.5 동기화 클래스
 
@@ -242,6 +267,7 @@ public class HiddenIterator {
 ### 5.5.3 세마포어
 
 > 특정 자원이나 특정연산을 동시에 사용하거나 호출할 수 있는 스레드의 수를 제한하고자 할 때 사용한다.
+> **세마포어**(Semaphore)는 [에츠허르 데이크스트라](https://ko.wikipedia.org/wiki/%EC%97%90%EC%B8%A0%ED%97%88%EB%A5%B4_%EB%8D%B0%EC%9D%B4%ED%81%AC%EC%8A%A4%ED%8A%B8%EB%9D%BC)가 고안한, 두 개의 원자적 함수로 조작되는 정수 변수로서, [멀티프로그래밍](https://ko.wikipedia.org/wiki/%EB%A9%80%ED%8B%B0%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%98%EB%B0%8D) 환경에서 공유 자원에 대한 접근을 제한하는 방법으로 사용된다. 이는 [철학자들의 만찬 문제](https://ko.wikipedia.org/wiki/%EC%B2%A0%ED%95%99%EC%9E%90%EB%93%A4%EC%9D%98_%EB%A7%8C%EC%B0%AC_%EB%AC%B8%EC%A0%9C)의 고전적인 해법이지만 모든 [교착 상태](https://ko.wikipedia.org/wiki/%EA%B5%90%EC%B0%A9_%EC%83%81%ED%83%9C)를 해결하지는 못한다.
 
 ### 5.5.4 배리어
 
@@ -251,3 +277,10 @@ public class HiddenIterator {
 
 ## 5.6 효율적이고 확장성 있는 결과 캐시 구현
 
+* 단순한 HashMap을 통해 캐쉬 구현 -> 안정성 구현을 위해 compute 함수를 synchronized 시킴
+  단점 : compute함수 전체를 lock을 걸었으므로 성능 하락
+* HashMap -> ConcurrentHashMap으로 대체 -> compute함수의 synchronized 제거
+  단점: 두개 이상의 스레드가 동시에 같은 값을 넘기면서 compute 메소드를 호출해 같은 결과를 받아갈 가능성이 있기 때문(메모이제이션이라는 측명에서 보면 이런 상황은 단순히 효율성이 약간 떨어지는 상황이나 캐시는 같은 값으로 같은 연산을 두번 이상 실행하지 않겠다는 것이기 때문에 안정성 문제가 있다라고 봐야함)
+* ConcurrentHashMap에 내부적으로 FutureTask를 통해 단점을 수정 하려 함
+  그러나 타이밍이 좋지 않을 경우 동일하게 두 번 계산하는 경우가 생김
+* 마지막으로 putIfAbsent 메소드를 통해 put을 하면 문제가 사라진다.
