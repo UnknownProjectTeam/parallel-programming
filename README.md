@@ -25,5 +25,7 @@ Chapter 4 [LINK](./document/cp4.md)
 
 Chapter 5 [LINK](./document/cp5.md)
 
+Chapter 6 [LINK](./document/cp6.md)
+
 
 
